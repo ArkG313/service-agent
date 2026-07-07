@@ -6,8 +6,8 @@ from __future__ import annotations
 
 from collections import defaultdict
 
-from service_agent.config.models import Message, Role
-from service_agent.config.settings import settings
+from config.models import Message, Role
+from config.settings import settings
 
 
 class MemoryManager:

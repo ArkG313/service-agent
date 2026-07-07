@@ -2,12 +2,12 @@
 应用入口 —— 支持 CLI 交互与 API 服务两种模式。
 
 用法:
-    service-agent chat                      # 启动交互式聊天
-    service-agent chat -m "你好"             # 单次问答
-    service-agent serve                     # 启动 API 服务
-    service-agent rag stats                 # 知识库统计
-    service-agent rag reload                # 重新加载知识库
-    service-agent tools list                # 列出工具
+    python app.py chat                      # 启动交互式聊天
+    python app.py chat -m "你好"             # 单次问答
+    python app.py serve                     # 启动 API 服务
+    python app.py rag stats                 # 知识库统计
+    python app.py rag reload                # 重新加载知识库
+    python app.py tools list                # 列出工具
 """
 
 from __future__ import annotations
@@ -20,9 +20,9 @@ from rich.markdown import Markdown
 from rich.panel import Panel
 from rich.prompt import Prompt
 
-from service_agent.agent.core import service_agent
-from service_agent.config.settings import settings
-from service_agent.rag.retriever import rag_manager
+from agent.core import service_agent
+from config.settings import settings
+from rag.retriever import rag_manager
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
 
@@ -103,7 +103,7 @@ def serve(
         raise typer.Exit(1)
 
     uvicorn.run(
-        "service_agent.app:create_app",
+        "app:create_app",
         factory=True,
         host=host or settings.api_host,
         port=port or settings.api_port,
@@ -156,8 +156,8 @@ def create_app():
     """
     from fastapi import FastAPI, HTTPException
 
-    from service_agent.agent.memory import memory_manager
-    from service_agent.config.models import ChatRequest, ChatResponse
+    from agent.memory import memory_manager
+    from config.models import ChatRequest, ChatResponse
 
     web = FastAPI(title="Service Agent API", version="0.1.0")
 

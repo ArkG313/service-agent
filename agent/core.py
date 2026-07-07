@@ -16,13 +16,13 @@ import logging
 import uuid
 from dataclasses import dataclass, field
 
-from service_agent.agent.llm import llm_client
-from service_agent.agent.memory import memory_manager
-from service_agent.config.models import ChatResponse, Message, Role
-from service_agent.config.settings import settings
-from service_agent.rag.retriever import rag_manager
-from service_agent.tools.base import ToolRegistry
-from service_agent.tools.builtin import get_default_tools
+from agent.llm import llm_client
+from agent.memory import memory_manager
+from config.models import ChatResponse, Message, Role
+from config.settings import settings
+from rag.retriever import rag_manager
+from tools.base import ToolRegistry
+from tools.builtin import get_default_tools
 
 logger = logging.getLogger(__name__)
 

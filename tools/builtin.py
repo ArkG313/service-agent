@@ -7,7 +7,7 @@ from __future__ import annotations
 import datetime
 from typing import Any
 
-from service_agent.tools.base import BaseTool
+from tools.base import BaseTool
 
 
 class GetTimeTool(BaseTool):

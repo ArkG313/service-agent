@@ -10,8 +10,6 @@ import abc
 import logging
 from typing import Any
 
-# 注意: 此文件不依赖 service_agent 包内其他模块
-
 logger = logging.getLogger(__name__)
 
 

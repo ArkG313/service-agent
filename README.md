@@ -6,21 +6,19 @@
 
 ```
 service-agent/
-├── src/service_agent/         # 源码包 (src layout)
-│   ├── __init__.py
-│   ├── app.py                 #   🚀 入口(CLI + API)
-│   ├── agent/                 #   Agent 逻辑
-│   │   ├── core.py            #     🧠 核心编排(RAG→LLM→工具→回传)
-│   │   ├── llm.py             #     🔌 LLM 客户端(OpenAI)
-│   │   └── memory.py          #     💾 会话记忆管理
-│   ├── rag/                   #   RAG 检索
-│   │   └── retriever.py       #     📚 ChromaDB 知识库检索
-│   ├── tools/                 #   工具函数
-│   │   ├── base.py            #     工具基类 + 注册中心
-│   │   └── builtin.py         #     内置工具(查订单/算运费/转人工/查时间)
-│   └── config/                #   配置
-│       ├── settings.py        #     ⚙️ 环境变量配置
-│       └── models.py          #     📦 数据模型
+├── app.py                     # 🚀 入口(CLI + API)
+├── agent/                     # Agent 逻辑
+│   ├── core.py                #   🧠 核心编排(RAG→LLM→工具→回传)
+│   ├── llm.py                 #   🔌 LLM 客户端(OpenAI)
+│   └── memory.py              #   💾 会话记忆管理
+├── rag/                       # RAG 检索
+│   └── retriever.py           #   📚 ChromaDB 知识库检索
+├── tools/                     # 工具函数
+│   ├── base.py                #   工具基类 + 注册中心
+│   └── builtin.py             #   内置工具(查订单/算运费/转人工/查时间)
+├── config/                    # 配置
+│   ├── settings.py            #   ⚙️ 环境变量配置
+│   └── models.py              #   📦 数据模型
 ├── tests/                     # 测试
 ├── data/                      # 知识库数据
 │   ├── knowledge_base/        #   知识库文档(PDF/TXT/MD)
@@ -33,7 +31,7 @@ service-agent/
 ## 🚀 快速开始
 
 ```bash
-# 1. 安装依赖(开发模式,自动注册包)
+# 1. 安装依赖(开发模式)
 pip install -e ".[dev]"
 
 # 2. 配置
@@ -41,21 +39,21 @@ cp .env.example .env
 # 编辑 .env 填入 OPENAI_API_KEY
 
 # 3. 运行
-service-agent chat                    # 交互式聊天
-service-agent chat -m "退换货政策?"    # 单次问答
-service-agent serve                   # 启动 API 服务 → /docs
+python app.py chat                    # 交互式聊天
+python app.py chat -m "退换货政策?"    # 单次问答
+python app.py serve                   # 启动 API 服务 → /docs
 ```
 
 ## 📋 命令一览
 
 | 命令 | 说明 |
 |------|------|
-| `service-agent chat` | 交互式聊天 |
-| `service-agent chat -m "消息"` | 单次问答 |
-| `service-agent serve` | 启动 API 服务 |
-| `service-agent rag stats` | 知识库统计 |
-| `service-agent rag reload` | 重新加载知识库 |
-| `service-agent tools list` | 列出工具 |
+| `python app.py chat` | 交互式聊天 |
+| `python app.py chat -m "消息"` | 单次问答 |
+| `python app.py serve` | 启动 API 服务 |
+| `python app.py rag stats` | 知识库统计 |
+| `python app.py rag reload` | 重新加载知识库 |
+| `python app.py tools list` | 列出工具 |
 
 ## 🔧 自定义工具
 

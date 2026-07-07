@@ -2,9 +2,9 @@
 配置与记忆测试。
 """
 
-from service_agent.config.models import ChatRequest, ChatResponse, Message, Role
-from service_agent.config.settings import Settings
-from service_agent.agent.memory import MemoryManager
+from config.models import ChatRequest, ChatResponse, Message, Role
+from config.settings import Settings
+from agent.memory import MemoryManager
 
 
 def test_settings_defaults():
