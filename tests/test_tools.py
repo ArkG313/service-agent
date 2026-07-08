@@ -2,7 +2,7 @@
 工具系统测试。
 """
 
-from tools.base import BaseTool, ToolRegistry
+from agent.tools.base import BaseTool, ToolRegistry
 
 
 class MockTool(BaseTool):
@@ -42,7 +42,7 @@ def test_tool_unknown():
 
 
 def test_get_default_tools():
-    from tools.builtin import get_default_tools
+    from agent.tools.builtin import get_default_tools
 
     tools = get_default_tools()
     names = [t.name for t in tools]

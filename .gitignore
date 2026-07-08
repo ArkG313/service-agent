@@ -14,10 +14,15 @@ env/
 
 # 数据(向量库与知识库文档不入库)
 data/vector_db/
-data/knowledge_base/*.pdf
-data/knowledge_base/*.txt
-data/knowledge_base/*.md
+data/knowledge_base/
+data/external/
+data/*.pdf
+data/*.txt
+data/*.md
 !data/knowledge_base/.gitkeep
+
+# 日志
+logs/
 
 # IDE
 .vscode/
