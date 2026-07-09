@@ -1,207 +1,60 @@
-"""
-应用入口 —— 支持 CLI 交互与 API 服务两种模式。
+from dotenv import load_dotenv  # 加载 .env 文件里的 API Key
+load_dotenv()  # 读取 .env 文件，把里面的变量加到环境变量里
 
-用法:
-    python app.py chat                      # 启动交互式聊天
-    python app.py chat -m "你好"             # 单次问答
-    python app.py serve                     # 启动 API 服务
-    python app.py rag stats                 # 知识库统计
-    python app.py rag reload                # 重新加载知识库
-    python app.py tools list                # 列出工具
-"""
+import streamlit as st  # Streamlit：快速搭建Web界面的库
+from agent.react_agent import ReactAgent  # 导入 ReAct 智能体
 
-from __future__ import annotations
+# 设置网页标题和图标
+st.set_page_config(page_title="智扫通 · 智能客服", page_icon="🤖")
+# 页面主标题
+st.title("🤖 智扫通机器人智能客服")
+# 副标题（灰色小字）
+st.caption("基于 LangChain ReAct Agent + RAG 检索增强")
+# 分隔线
+st.divider()
 
-import logging
+# session_state 是 Streamlit 的会话状态，页面刷新后数据不会丢
+# 如果还没有创建 Agent，就创建一个（只创建一次，后续复用）
+if "agent" not in st.session_state:
+    st.session_state["agent"] = ReactAgent()
 
-import typer
-from rich.console import Console
-from rich.markdown import Markdown
-from rich.panel import Panel
-from rich.prompt import Prompt
+# 如果还没有聊天记录，就初始化一个空列表
+if "messages" not in st.session_state:
+    st.session_state["messages"] = []
 
-from agent.core import service_agent
-from config.settings import settings
-from rag.retriever import rag_manager
+# 遍历之前的聊天记录，重新显示在页面上（这样刷新页面后历史对话不会丢）
+for message in st.session_state["messages"]:
+    # chat_message() 创建聊天气泡，role 决定气泡在左边还是右边
+    st.chat_message(message["role"]).write(message["content"])
 
-logging.basicConfig(level=logging.INFO, format="%(asctime)s [%(levelname)s] %(name)s: %(message)s")
+# 显示聊天输入框，用户输入的文字会赋值给 prompt
+prompt = st.chat_input()
 
-console = Console()
-app = typer.Typer(name="service-agent", help="智能客服 Agent", no_args_is_help=True)
-rag_app = typer.Typer(name="rag", help="知识库管理")
-tools_app = typer.Typer(name="tools", help="工具管理")
-app.add_typer(rag_app, name="rag")
-app.add_typer(tools_app, name="tools")
+# 如果用户输入了内容
+if prompt:
+    # 在页面上显示用户的消息（右侧气泡）
+    st.chat_message("user").write(prompt)
+    # 把用户消息保存到聊天记录里
+    st.session_state["messages"].append({"role": "user", "content": prompt})
 
+    # 用来缓存 AI 完整回复的列表（因为流式输出是一段一段的，需要拼接起来）
+    response_messages: list[str] = []
+    # 显示"思考中..."的加载动画
+    with st.spinner("智能客服思考中..."):
+        # 获取 Agent 的流式输出（一个生成器，每次 yield 一段文字）
+        res_stream = st.session_state["agent"].execute_stream(prompt)
 
-@app.command()
-def chat(
-    message: str = typer.Option(None, "--message", "-m", help="单次问答模式"),
-    session_id: str = typer.Option(None, "--session", "-s", help="会话 ID"),
-) -> None:
-    """与 Agent 聊天。"""
-    if message:
-        with console.status("[bold green]思考中..."):
-            resp = service_agent.chat(message, session_id=session_id)
-        _print_response(resp)
-        return
+        # 定义一个生成器函数：逐字输出，同时把完整回复缓存起来
+        def stream_generator(generator, cache_list):
+            """逐字流式输出，同时缓存完整响应"""
+            for chunk in generator:        # 遍历生成器的每一段输出
+                cache_list.append(chunk)   # 把这一段存到缓存列表
+                for char in chunk:         # 把这一段拆成单个字符
+                    yield char             # 逐个字符产出（实现打字机效果）
 
-    console.print(Panel.fit(
-        "[bold]智能客服 Agent[/bold] 🤖\n"
-        f"模型: {settings.llm_model}\n"
-        "输入 [bold]exit[/bold] 退出 | 输入 [bold]reset[/bold] 重置会话",
-        title="Service Agent",
-        border_style="cyan",
-    ))
-    current = session_id
-    while True:
-        try:
-            user_input = Prompt.ask("[bold cyan]你[/bold cyan]")
-        except (EOFError, KeyboardInterrupt):
-            console.print("\n再见! 👋")
-            break
-        if not user_input.strip():
-            continue
-        if user_input.strip().lower() in ("exit", "quit"):
-            console.print("再见! 👋")
-            break
-        if user_input.strip().lower() == "reset":
-            if current:
-                service_agent.reset_session(current)
-            console.print("[yellow]会话已重置[/yellow]")
-            continue
-        with console.status("[bold green]思考中..."):
-            resp = service_agent.chat(user_input, session_id=current)
-        current = resp.session_id
-        _print_response(resp)
-
-
-def _print_response(resp) -> None:
-    console.print()
-    console.print(Markdown(resp.reply), style="white")
-    if resp.tool_used:
-        console.print(f"  🔧 使用工具: {', '.join(resp.tool_used)}", style="dim")
-    if resp.sources:
-        console.print(f"  📚 知识来源: {', '.join(resp.sources)}", style="dim")
-    console.print(f"  🆔 会话: {resp.session_id}", style="dim")
-    console.print()
-
-
-@app.command()
-def serve(
-    host: str = typer.Option(None, "--host", help="监听地址"),
-    port: int = typer.Option(None, "--port", help="监听端口"),
-) -> None:
-    """启动 API 服务。"""
-    import uvicorn
-
-    # 确认 FastAPI 已安装
-    try:
-        import fastapi  # noqa: F401
-    except ImportError:
-        console.print("[red]缺少 fastapi,请运行: pip install fastapi uvicorn[/red]")
-        raise typer.Exit(1)
-
-    uvicorn.run(
-        "app:create_app",
-        factory=True,
-        host=host or settings.api_host,
-        port=port or settings.api_port,
-        reload=False,
-    )
-
-
-@rag_app.command("stats")
-def rag_stats() -> None:
-    """查看知识库统计。"""
-    stats = rag_manager.get_stats()
-    console.print(Panel.fit(
-        f"初始化: {'✅' if stats['initialized'] else '❌'}\n"
-        f"分块数: {stats.get('chunk_count', 0)}\n"
-        f"Collection: {stats.get('collection', 'N/A')}",
-        title="知识库统计",
-        border_style="cyan",
-    ))
-
-
-@rag_app.command("reload")
-def rag_reload() -> None:
-    """重新加载知识库。"""
-    with console.status("[bold green]加载中..."):
-        rag_manager.reload()
-    console.print("[green]知识库已重新加载[/green]")
-    rag_stats()
-
-
-@tools_app.command("list")
-def tools_list() -> None:
-    """列出所有工具。"""
-    names = service_agent.registry.list_names()
-    if not names:
-        console.print("[yellow]没有已注册的工具[/yellow]")
-        return
-    for name in names:
-        tool = service_agent.registry.get(name)
-        console.print(f"  🔧 [bold]{name}[/bold]: {tool.description}")  # type: ignore[union-attr]
-
-
-# ===== FastAPI 应用工厂 =====
-
-
-def create_app():
-    """
-    创建 FastAPI 应用。
-
-    在 `serve` 命令中通过 uvicorn factory 模式调用。
-    """
-    from fastapi import FastAPI, HTTPException
-
-    from agent.memory import memory_manager
-    from config.models import ChatRequest, ChatResponse
-
-    web = FastAPI(title="Service Agent API", version="0.1.0")
-
-    @web.get("/health")
-    async def health():
-        return {"status": "ok", "version": "0.1.0"}
-
-    @web.post("/api/chat", response_model=ChatResponse)
-    async def chat_api(req: ChatRequest):
-        try:
-            return service_agent.chat(req.message, session_id=req.session_id)
-        except Exception as e:
-            raise HTTPException(status_code=500, detail=str(e)) from e
-
-    @web.get("/api/sessions")
-    async def list_sessions():
-        return [
-            {"session_id": sid, "message_count": memory_manager.get_session_info(sid)["message_count"]}
-            for sid in memory_manager.list_sessions()
-        ]
-
-    @web.delete("/api/sessions/{session_id}")
-    async def delete_session(session_id: str):
-        service_agent.reset_session(session_id)
-        return {"status": "deleted", "session_id": session_id}
-
-    @web.get("/api/tools")
-    async def list_tools():
-        return [
-            {"name": n, "description": service_agent.registry.get(n).description}  # type: ignore[union-attr]
-            for n in service_agent.registry.list_names()
-        ]
-
-    @web.get("/api/rag/stats")
-    async def rag_stats_api():
-        return rag_manager.get_stats()
-
-    @web.post("/api/rag/reload")
-    async def rag_reload_api():
-        rag_manager.reload()
-        return rag_manager.get_stats()
-
-    return web
-
-
-if __name__ == "__main__":
-    app()
+        # 在页面上显示 AI 的回复（左侧气泡），用流式方式逐字显示
+        st.chat_message("assistant").write_stream(stream_generator(res_stream, response_messages))
+        # 把完整的 AI 回复拼成字符串，保存到聊天记录
+        st.session_state["messages"].append({"role": "assistant", "content": "".join(response_messages)})
+        # st.rerun() 重新运行整个页面，把刚生成的 AI 回复也显示在历史记录里
+        st.rerun()

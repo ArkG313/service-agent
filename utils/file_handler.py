@@ -43,7 +43,7 @@ def pdf_loader(filepath:str,passwd=None)->list[Document]:
 
 def txt_loader(filepath:str)->list[Document]:
      """读取TXT文件，返回文档列表"""
-     return TextLoader(filepath,encoding="utf-8").load
+     return TextLoader(filepath,encoding="utf-8").load()
 
 
 if __name__=='__main__':

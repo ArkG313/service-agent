@@ -17,9 +17,14 @@ data/vector_db/
 data/knowledge_base/
 data/external/
 data/*.pdf
-data/*.txt
 data/*.md
 !data/knowledge_base/.gitkeep
+
+# ChromaDB 持久化存储(自动生成)
+chroma_db/
+
+# MD5 去重记录(自动生成)
+md5.txt
 
 # 日志
 logs/
