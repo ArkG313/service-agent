@@ -1,3 +1,19 @@
+"""
+Agent 工具集模块。
+
+什么是工具（Tool）？
+- 在 ReAct Agent 架构中，模型本身只会"思考和说话"，不能查数据库、调API
+- "工具"就是给模型扩展的能力，比如：查天气、查知识库、查用户数据
+- 模型在推理过程中可以自主决定"要不要调用某个工具"
+
+为什么需要这个文件？
+- 这里定义了 Agent 可以使用的所有工具（共7个）
+- 每个工具用 @tool 装饰器注册，description 非常重要——模型根据描述决定用不用这个工具
+- 工具分为三类：
+  1. 知识检索：rag_summarize（RAG 查知识库）
+  2. 模拟数据：get_weather / get_user_location / get_user_id / get_current_month / fetch_external_data
+  3. 上下文触发：fill_context_for_report（触发报告生成模式）
+"""
 import os
 from utils.logger_handler import logger  # 日志器
 # @tool 是 LangChain 的装饰器，把普通函数变成"工具"，让 AI 模型可以自主调用
@@ -8,16 +24,18 @@ import random  # 随机数模块，用来模拟数据
 from utils.config_handler import agent_conf  # Agent 配置
 from utils.path_tool import get_abs_path  # 路径工具
 
-rag=RagSummarizeService()
+# 创建 RAG 服务实例（模块级单例，所有工具共享一个实例）
+rag = RagSummarizeService()
 
-# 模拟用户ID列表（实际项目里应该从数据库或登录信息获取）
-user_ids = ["1001", "1002", "1003", "1004", "1005", "1006", "1007", "1008", "1009", "1010",]
+# 模拟用户 ID 列表（实际项目里应该从数据库或登录信息获取）
+user_ids = ["1001", "1002", "1003", "1004", "1005", "1006", "1007", "1008", "1009", "1010"]
 # 2025年的12个月列表
 month_arr = ["2025-01", "2025-02", "2025-03", "2025-04", "2025-05", "2025-06",
-             "2025-07", "2025-08", "2025-09", "2025-10", "2025-11", "2025-12", ]
+             "2025-07", "2025-08", "2025-09", "2025-10", "2025-11", "2025-12"]
 
-# 外部数据缓存（从CSV读取后存在这里，避免每次调用都重新读文件）
+# 外部数据缓存（从 CSV 读取后存在这里，避免每次调用都重新读文件）
 external_data = {}
+
 
 # ====== 工具1：RAG 知识检索 ======
 # @tool 装饰器里的 description 非常重要：AI 模型会根据这个描述决定要不要调用这个工具
@@ -52,13 +70,14 @@ def get_user_id() -> str:
 @tool(description="获取当前月份，以纯字符串形式返回")
 def get_current_month() -> str:
     """模拟获取当前月份"""
-    return random.choice(month_arr)
+    return random.choice()
 
 
 # ====== 内部函数：从CSV读取外部数据到内存 ======
 def generate_external_data():
     """
-    从CSV文件读取数据，存入 external_data 字典
+    从 CSV 文件读取数据，存入 external_data 字典。
+
     数据结构如下：
     {
         "1001": {                              # 用户ID
@@ -72,6 +91,11 @@ def generate_external_data():
         },
         ...
     }
+
+    为什么用字典缓存？
+    - CSV 文件不大但每次调用工具都读一遍 IO 开销大
+    - 读一次存内存里（external_data），后续查询走内存，速度快很多
+
     :return: None
     """
     # 如果 external_data 已经有数据了，就不重复读取
@@ -83,14 +107,14 @@ def generate_external_data():
         if not os.path.exists(external_data_path):
             raise FileNotFoundError(f"外部数据文件{external_data_path}不存在")
 
-        # 打开CSV文件读取
+        # 打开 CSV 文件读取
         with open(external_data_path, "r", encoding="utf-8") as f:
             # readlines()[1:] 跳过第一行（表头），从第二行开始读
             for line in f.readlines()[1:]:
                 # strip() 去掉首尾空白，split(",") 按逗号分割成列表
                 arr: list[str] = line.strip().split(",")
 
-                # CSV每行有6列：用户ID, 特征, 效率, 耗材, 对比, 时间
+                # CSV 每行有6列：用户ID, 特征, 效率, 耗材, 对比, 时间
                 # replace('"', '') 去掉字段两端的引号
                 user_id: str = arr[0].replace('"', "")
                 feature: str = arr[1].replace('"', "")
@@ -131,9 +155,16 @@ def fetch_external_data(user_id: str, month: str) -> str:
 # ====== 工具7：触发报告生成 ======
 @tool(description="无入参，无返回值，调用后触发中间件自动为报告生成的场景动态注入上下文信息，为后续提示词切换提供上下文信息")
 def fill_context_for_report():
-    """这个工具本身不做什么，但被调用时，中间件会检测到并切换到报告生成提示词"""
-    return "fill_context_for_report已调用"
+    """
+    这个工具本身不做什么实际操作，但它是一个"信号触发器"。
 
+    工作原理：
+    - 中间件（middleware.py 的 monitor_tool）会监控所有工具调用
+    - 当检测到 fill_context_for_report 被调用时，设置 context["report"] = True
+    - 另一个中间件（report_prompt_switch）检测到 report=True 后，切换到报告生成提示词
+    - 这样就实现了"动态切换提示词"的功能
+    """
+    return "fill_context_for_report已调用"
 
 
 if __name__ == '__main__':

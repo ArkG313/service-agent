@@ -1,3 +1,23 @@
+"""
+ReAct 智能体模块。
+
+什么是 ReAct？
+- ReAct = Reasoning + Acting（推理 + 行动）
+- 核心思想：让 AI 模型"边思考边行动"
+- 工作循环：
+  1. 思考（Reasoning）：模型分析用户问题，决定下一步该做什么
+  2. 行动（Acting）：调用工具（如查知识库、查天气）
+  3. 观察（Observing）：看工具返回了什么结果
+  4. 再思考：根据结果继续推理，直到能给出最终答案
+
+- 这是目前主流的 Agent 范式，比单纯的"问答"更强大，
+  因为模型可以主动调用外部工具来获取信息
+
+这个文件做了什么？
+- 用 LangChain 的 create_agent() 创建一个完整的 ReAct Agent
+- 配置好模型、系统提示词、工具列表、中间件
+- 提供流式执行接口（execute_stream），让前端可以逐字显示回复
+"""
 from langchain.agents import create_agent  # create_agent：创建 ReAct 智能体
 from model.factory import chat_model  # 聊天模型
 from utils.prompt_loader import load_system_prompts  # 加载系统提示词
@@ -9,7 +29,15 @@ from agent.tools.middleware import monitor_tool, log_before_model, report_prompt
 
 
 class ReactAgent:
-    """ReAct 智能体：Reasoning + Acting，让AI边思考边行动"""
+    """
+    ReAct 智能体：Reasoning + Acting，让AI边思考边行动。
+
+    这是整个项目的"大脑"，负责：
+    - 接收用户问题
+    - 决定是否调用工具（以及调用哪个）
+    - 整合工具返回的结果
+    - 生成最终回复
+    """
 
     def __init__(self):
         # create_agent 创建一个完整的 ReAct Agent
@@ -23,7 +51,17 @@ class ReactAgent:
         )
 
     def execute_stream(self, query: str):
-        """流式执行：逐段返回AI的回复，不用等全部生成完才显示"""
+        """
+        流式执行：逐段返回AI的回复，不用等全部生成完才显示。
+
+        为什么用流式？
+        - 大模型生成一段完整回复可能要几秒到十几秒
+        - 流式输出可以让用户看到"正在打字"的效果，体验更好
+        - 类似 ChatGPT 的逐字显示效果
+
+        :param query: 用户的问题
+        :yield: 每次产出一段文本（generator）
+        """
         # 构造输入：用户的问题作为一条 user 消息
         input_dict = {
             "messages": [

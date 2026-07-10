@@ -1,10 +1,25 @@
+"""
+智扫通 · 智能客服 — Streamlit Web 应用入口。
+
+为什么用 Streamlit？
+- Streamlit 是一个专为机器学习/AI 应用设计的 Web 框架
+- 不需要写 HTML/CSS/JS，纯 Python 就能搭出一个交互式网页
+- 适合快速做原型和演示
+
+这个文件做了什么？
+- 初始化网页配置（标题、图标）
+- 创建 ReAct Agent 实例（只创建一次，后续复用）
+- 显示聊天界面（用户消息 + AI回复）
+- 用流式输出实现"打字机"效果（逐字显示 AI 回复）
+- 保存聊天记录到 session_state（刷新页面不丢失）
+"""
 from dotenv import load_dotenv  # 加载 .env 文件里的 API Key
 load_dotenv()  # 读取 .env 文件，把里面的变量加到环境变量里
 
 import streamlit as st  # Streamlit：快速搭建Web界面的库
 from agent.react_agent import ReactAgent  # 导入 ReAct 智能体
 
-# 设置网页标题和图标
+# 设置网页标题和图标（必须在所有 Streamlit 命令之前调用）
 st.set_page_config(page_title="智扫通 · 智能客服", page_icon="🤖")
 # 页面主标题
 st.title("🤖 智扫通机器人智能客服")
@@ -46,7 +61,14 @@ if prompt:
 
         # 定义一个生成器函数：逐字输出，同时把完整回复缓存起来
         def stream_generator(generator, cache_list):
-            """逐字流式输出，同时缓存完整响应"""
+            """
+            逐字流式输出，同时缓存完整响应。
+
+            为什么逐字？
+            - Agent 的流式输出是一段一段的（可能一段好几个字）
+            - 逐字 yield 可以实现更细腻的"打字机"效果
+            - 同时把每一段存到 cache_list，最终拼成完整回复
+            """
             for chunk in generator:        # 遍历生成器的每一段输出
                 cache_list.append(chunk)   # 把这一段存到缓存列表
                 for char in chunk:         # 把这一段拆成单个字符
