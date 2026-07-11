@@ -1,5 +1,5 @@
 """
-智扫通 · 智能客服 — Streamlit Web 应用入口。
+智能扫地机器人智能客服Tommy — Streamlit Web 应用入口。
 
 为什么用 Streamlit？
 - Streamlit 是一个专为机器学习/AI 应用设计的 Web 框架
@@ -20,9 +20,9 @@ import streamlit as st  # Streamlit：快速搭建Web界面的库
 from agent.react_agent import ReactAgent  # 导入 ReAct 智能体
 
 # 设置网页标题和图标（必须在所有 Streamlit 命令之前调用）
-st.set_page_config(page_title="智扫通 · 智能客服", page_icon="🤖")
+st.set_page_config(page_title="扫地机器人智能客服Tommy", page_icon="🤖")
 # 页面主标题
-st.title("🤖 智扫通机器人智能客服")
+st.title("🤖 扫地机器人智能客服Tommy")
 # 副标题（灰色小字）
 st.caption("基于 LangChain ReAct Agent + RAG 检索增强")
 # 分隔线
